@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
+	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/kaneshin/pigeon/cache"
 	homedir "github.com/mitchellh/go-homedir"
 )
@@ -27,9 +29,11 @@ func main() {
 		log.Fatalf("Unable to get yur home directory: %v\n", err)
 	}
 
-	store := cache.FsStore{Path: filepath.Join(home, ".gvision-cache"), Expire: time.Minute * 30}
-	if err := store.Init(); err != nil {
-		log.Fatalf("Failed to intialize the cache store: %v\n", err)
+	home = filepath.Join(home, ".gvision-cache")
+	// store := cache.FsStore{Path:home , Expire: time.Minute * 30}
+	store := &cache.SQLStore{Db: cache.Sqlite(home), Expire: time.Minute * 30}
+	if err2 := store.Init(); err2 != nil {
+		log.Fatalf("Failed to intialize the cache store: %v\n", err2)
 	}
 
 	// Initialize vision service by a credentials json.
