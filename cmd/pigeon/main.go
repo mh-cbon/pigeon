@@ -10,6 +10,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"github.com/kaneshin/pigeon"
 	"github.com/kaneshin/pigeon/cache"
 	homedir "github.com/mitchellh/go-homedir"
 )
@@ -37,7 +38,7 @@ func main() {
 	}
 
 	// Initialize vision service by a credentials json.
-	client, err := cache.New(store, nil)
+	client, err := pigeon.New(nil)
 	if err != nil {
 		log.Fatalf("Unable to retrieve vision service: %v\n", err)
 	}
@@ -47,8 +48,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to retrieve image request: %v\n", err)
 	}
+
+	// initialize a call with cache support, and monthly max limit.
+	call := cache.Call(client.ImagesService().Annotate(batch), store, batch).MaxPerMonth(1000)
+
 	// Execute the "vision.images.annotate".
-	res, err := client.ImagesService().Annotate(batch).Do()
+	res, err := call.Do()
 	if err != nil {
 		log.Fatalf("Unable to execute images annotate requests: %v\n", err)
 	}

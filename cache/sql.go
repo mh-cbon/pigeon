@@ -76,7 +76,6 @@ func (s *SQLStore) Get(hash string) (*vision.BatchAnnotateImagesResponse, bool) 
 		return nil, false
 	}
 	defer stmt.Close()
-	stmt.Query(hash)
 
 	rows, err := stmt.Query(hash)
 	if err != nil {
@@ -95,4 +94,29 @@ func (s *SQLStore) Get(hash string) (*vision.BatchAnnotateImagesResponse, bool) 
 	}
 	v := &vision.BatchAnnotateImagesResponse{}
 	return v, json.Unmarshal([]byte(data), v) == nil
+}
+
+// LastMonthCount count the numbers of hash created in lat 30 days
+func (s *SQLStore) LastMonthCount() (int, error) {
+	sql := `
+		SELECT COUNT(*) FROM items WHERE createdate > date('now','-1 month')
+		`
+	stmt, err := s.Db.Prepare(sql)
+	if err != nil {
+		return 0, err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	var c int
+	rows.Next()
+	if err := rows.Scan(&c); err != nil {
+		return 0, err
+	}
+	return c, nil
 }

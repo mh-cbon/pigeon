@@ -2,6 +2,7 @@ package cache
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 // Storer of *vision.BatchAnnotateImagesResponse
 type Storer interface {
 	Init() error
+	LastMonthCount() (int, error)
 	Get(hash string) (*vision.BatchAnnotateImagesResponse, bool)
 	Save(hash string, res *vision.BatchAnnotateImagesResponse) error
 }
@@ -54,4 +56,9 @@ func (f FsStore) Get(hash string) (*vision.BatchAnnotateImagesResponse, bool) {
 	}
 	v := &vision.BatchAnnotateImagesResponse{}
 	return v, json.Unmarshal(data, v) == nil
+}
+
+// LastMonthCount count the numbers of hash created in lat 30 days
+func (f FsStore) LastMonthCount() (int, error) {
+	return 0, fmt.Errorf("not implemented")
 }

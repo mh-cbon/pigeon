@@ -9,26 +9,17 @@ import (
 	vision "google.golang.org/api/vision/v1"
 )
 
-// ImagesService can cache
-type ImagesService struct {
-	store Storer
-	*vision.ImagesService
-}
-
-// Annotate returns from cache or remote.
-func (v ImagesService) Annotate(batchannotateimagesrequest *vision.BatchAnnotateImagesRequest) AnnotationDoer {
-	return &ServiceCall{
-		store:             v.store,
-		visionServiceCall: &visionServiceCall{v.ImagesService.Annotate(batchannotateimagesrequest)},
-		req:               batchannotateimagesrequest,
-	}
+// Call with cache support
+func Call(s *vision.ImagesAnnotateCall, store Storer, batch *vision.BatchAnnotateImagesRequest) *ServiceCall {
+	return &ServiceCall{ImagesAnnotateCall: s, store: store, req: batch}
 }
 
 // ServiceCall wraps a vison.ServiceCall with a cache.
 type ServiceCall struct {
-	*visionServiceCall
-	store Storer
-	req   *vision.BatchAnnotateImagesRequest
+	*vision.ImagesAnnotateCall
+	store       Storer
+	req         *vision.BatchAnnotateImagesRequest
+	maxPerMonth int
 }
 
 func (c *ServiceCall) getHash() (string, error) {
@@ -42,6 +33,12 @@ func (c *ServiceCall) getHash() (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
+// MaxPerMonth queries
+func (c *ServiceCall) MaxPerMonth(n int) *ServiceCall {
+	c.maxPerMonth = n
+	return c
+}
+
 // Do reads from cache or execute online.
 func (c *ServiceCall) Do(opts ...googleapi.CallOption) (*vision.BatchAnnotateImagesResponse, error) {
 	hash, err := c.getHash()
@@ -52,7 +49,17 @@ func (c *ServiceCall) Do(opts ...googleapi.CallOption) (*vision.BatchAnnotateIma
 	if res, ok := c.store.Get(hash); ok {
 		return res, nil
 	}
-	res, err := c.visionServiceCall.Do(opts...)
+
+	if c.maxPerMonth > 0 {
+		n, err2 := c.store.LastMonthCount()
+		if err2 != nil {
+			return nil, err
+		}
+		if n+1 > c.maxPerMonth {
+			return nil, fmt.Errorf("max limit of %v monthly queries exceeded", c.maxPerMonth)
+		}
+	}
+	res, err := c.ImagesAnnotateCall.Do(opts...)
 	if err != nil {
 		return nil, err
 	}
